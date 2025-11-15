@@ -1,0 +1,173 @@
+name: Workflow
+
+on: 
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Job for the 'cipher' application
+  test-cipher:
+    name: Test Cipher App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use Python 3.11 as requested
+
+      - name: Add ChromeDriver to PATH
+        run: echo "$CHROMEWEBDRIVER" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install behave==1.2.6 behave-webdriver==0.3.1 selenium==3.141.0 urllib3==1.26.18 six==1.16.0
+          
+      - name: Run Cipher Tests
+        working-directory: ./cipher
+        run: |
+          echo "Running tests in the 'cipher' directory..."
+          echo "--- Verifying versions ---"
+          echo "ChromeDriver: $(chromedriver --version)"
+          echo "Google Chrome: $(google-chrome --version)"
+          echo "Python: $(python --version)"
+          echo "--------------------------"
+          python -m behave features/
+          # -----------------------------------------------------------------
+
+  # Job for the 'isitchristmas' application
+  test-isitchristmas:
+    name: Test IsItChristmas App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use Python 3.11 as requested
+
+      - name: Add ChromeDriver to PATH
+        run: echo "$CHROMEWEBDRIVER" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install behave==1.2.6 behave-webdriver==0.3.1 selenium==3.141.0 urllib3==1.26.18 six==1.16.0
+
+      - name: Run IsItChristmas Tests
+        working-directory: ./isitchristmas
+        run: |
+          echo "Running tests in the 'isitchristmas' directory..."
+          echo "--- Verifying versions ---"
+          echo "ChromeDriver: $(chromedriver --version)"
+          echo "Google Chrome: $(google-chrome --version)"
+          echo "Python: $(python --version)"
+          echo "--------------------------"
+          python -m behave features/
+          # -----------------------------------------------------------------
+
+  # Job for the 'peppers-ghost' application
+  test-peppers-ghost:
+    name: Test Peppers-Ghost App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use Python 3.11 as requested
+
+      - name: Add ChromeDriver to PATH
+        run: echo "$CHROMEWEBDRIVER" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install behave==1.2.6 behave-webdriver==0.3.1 selenium==3.141.0 urllib3==1.26.18 six==1.16.0
+
+      - name: Run Peppers-Ghost Tests
+        working-directory: ./peppers-ghost
+        run: |
+          echo "Running tests in the 'peppers-ghost' directory..."
+          echo "--- Verifying versions ---"
+          echo "ChromeDriver: $(chromedriver --version)"
+          echo "Google Chrome: $(google-chrome --version)"
+          echo "Python: $(python --version)"
+          echo "--------------------------"
+          python -m behave features/
+          # -----------------------------------------------------------------
+
+  # Job for the 'squirrel_app' application (using Docker)
+  test-squirrel-app:
+    name: Test Squirrel App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Add Python setup for Behave runner
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use Python 3.11 as requested
+
+      # Add ChromeDriver for Behave runner
+      - name: Add ChromeDriver to PATH
+        run: echo "$CHROMEWEBDRIVER" >> $GITHUB_PATH
+
+      # Install Behave dependencies on the runner
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install behave==1.2.6 behave-webdriver==0.3.1 selenium==3.141.0 urllib3==1.26.18 six==1.16.0
+
+      - name: Build and run Docker container
+        working-directory: ./squirrel_app
+        run: |
+          docker build -t squirrel-app .
+          docker run -d -p 8080:8080 -p 8000:8000 --name squirrel-container squirrel-app
+          
+      - name: Wait for servers to start and test endpoints
+        run: |
+          echo "Waiting for servers to start..."
+          sleep 10 # Give the servers time to initialize
+          
+          echo "Testing static server (port 8000)..."
+          # This will fail if the server doesn't return a 2xx/3xx status
+          curl -f http://localhost:8000
+          
+          echo "Testing squirrel server (port 8080)..."
+          # This will fail if the server doesn't return a 2xx/3xx status
+          curl -f http://localhost:8080
+          
+      # Run Behave tests against the running container
+      - name: Run Squirrel App Tests
+        working-directory: ./squirrel_app
+        run: |
+          echo "Running tests in the 'squirrel_app' directory..."
+          echo "--- Verifying versions ---"
+          echo "ChromeDriver: $(chromedriver --version)"
+          echo "Google Chrome: $(google-chrome --version)"
+          echo "Python: $(python --version)"
+          echo "--------------------------"
+          # Run behave, which will test against http://localhost:8080/8000
+          python -m behave features/
+
+      - name: Stop and remove container
+        # This step runs even if the test step fails, to ensure cleanup
+        if: always()
+        run: |
+          echo "Stopping and removing Docker container..."
+          docker stop squirrel-container
+          docker rm squirrel-container
